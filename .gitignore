@@ -13,3 +13,6 @@ promo/bgm/
 promo/old/
 promo/x-posts*.md
 promo/早わかり/
+promo/*.jpg
+promo/booking-log.tsv
+promo/schedule-*.md
