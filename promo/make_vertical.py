@@ -171,11 +171,20 @@ def main() -> int:
         text_png(head, spec["headline"], 76, FONT, 310, INK)
         credit = tmp / "credit.png"
         text_png(credit, [spec["credit"]], 24, FONT_SUB, credit_y, (95, 88, 78))
+        # "sub_pos": "below" puts the subtitles on the empty paper under the 3D area (dark text, no outline) so they
+        # never cover the picture; the default "over" keeps the account's usual style over the video (bottom at y=1245).
+        below = spec.get("sub_pos") == "below"
+        cw, ch = main_box["crop"][:2]
+        sub_top = main_box["y"] + round(W * ch / cw) + 28
         subs = []
         for i, (line, rep) in enumerate(zip(spec["lines"], report["lines"])):
             p = tmp / f"sub{i}.png"
-            text_png(p, line.get("sub") or wrap13(line["text"]), SUB_PX, FONT_SUB, SUB_BOTTOM, (255, 255, 255), stroke=5,
-                     stroke_fill=(0, 0, 0), line_h=1.25, anchor_bottom=True)
+            rows = line.get("sub") or wrap13(line["text"])
+            if below:
+                text_png(p, rows, SUB_PX - 4, FONT_SUB, sub_top, INK, line_h=1.3)
+            else:
+                text_png(p, rows, SUB_PX, FONT_SUB, SUB_BOTTOM, (255, 255, 255), stroke=5,
+                         stroke_fill=(0, 0, 0), line_h=1.25, anchor_bottom=True)
             start = rep["t"] + rep.get("speech_start", 0.0)
             end = min(rep["t"] + (rep.get("speech_end") or rep["dur"]) + 0.25, total)
             subs.append((p, start, end))
