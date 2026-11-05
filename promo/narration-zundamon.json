@@ -49,5 +49,9 @@
   }
  ],
  "speed": 1.15,
- "pause": 0.6
+ "pause": 0.6,
+ "name": "autodoor",
+ "bgm": "03_10C_しゃろう_ループ.mp3",
+ "bgm_title": "しゃろう「10℃」（OpenTracks、商用可・クレジット不要）",
+ "bgm_gain_db": -15
 }

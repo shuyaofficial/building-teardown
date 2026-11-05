@@ -7,5 +7,8 @@ building/vendor/
 __pycache__/
 *.blend1
 # 投稿文の下書き（公開しない）
-promo/x-posts.md
+
 promo/*.mp4
+promo/bgm/
+promo/old/
+promo/x-posts*.md

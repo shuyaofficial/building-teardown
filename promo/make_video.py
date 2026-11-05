@@ -2,6 +2,11 @@
 
     ~/.venvs/chatterbox/bin/python promo/make_video.py                                 # promo/narration.json
     ~/.venvs/chatterbox/bin/python promo/make_video.py promo/narration-zundamon.json   # ずんだもん版
+    ~/.venvs/chatterbox/bin/python promo/make_video.py promo/narration-elevator-zundamon.json   # エレベーター
+
+The script picks the film with "name" (autodoor by default: teardown-out/<name>-silent.mp4) and the music with "bgm":
+a file name in promo/bgm/ (not in the repository: the free BGM's terms forbid redistributing the file). Without "bgm"
+the teardown score teardown-out/<name>-score.wav is used.
 
 For promo/narration-<name>.json the narration is read from teardown-out/narration-<name>/ and the outputs get a
 -<name> suffix. A script with a "credit" (VOICEVOX:ずんだもん) shows it in the corner of the subtitle band all the way
@@ -34,8 +39,14 @@ OUT = ROOT / "teardown-out"
 SCRIPT = Path(sys.argv[1]).resolve() if len(sys.argv) > 1 else ROOT / "promo/narration.json"
 SUFFIX = SCRIPT.stem[len("narration"):] if SCRIPT.stem.startswith("narration") else "-" + SCRIPT.stem
 NARR = OUT / f"narration{SUFFIX}"
+SPEC = json.loads(SCRIPT.read_text())
+NAME = SPEC.get("name", "autodoor")
+SILENT = OUT / f"{NAME}-silent.mp4"
+DURATION = float(subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", str(SILENT)],
+                                capture_output=True, text=True, check=True).stdout)
+BGM_GAIN_DB = float(SPEC.get("bgm_gain_db", -15.0))
+OUT_SUFFIX = SUFFIX.replace(f"-{NAME}", "", 1)  # narration-elevator-zundamon.json → elevator-promo-zundamon.mp4
 SR = 48000
-DURATION = 54.4
 BAND_H = 180
 BG = "#efe9df"
 INK = (38, 36, 32, 255)
@@ -81,7 +92,7 @@ def srt_time(t: float) -> str:
 
 
 def write_srt(timed: list[dict]) -> Path:
-    path = ROOT / f"promo/autodoor{SUFFIX}.srt"
+    path = ROOT / f"promo/{NAME}{OUT_SUFFIX}.srt"
     body = "\n".join(f"{i + 1}\n{srt_time(c['start'])} --> {srt_time(c['end'])}\n{c['text']}\n" for i, c in enumerate(timed))
     path.write_text(body)
     return path
@@ -121,9 +132,10 @@ def credit_image(text: str) -> Path:
 
 
 def compose(narr_wav: Path, timed: list[dict], subs: list[Path], credit: Path | None) -> Path:
-    out = OUT / f"autodoor-promo{SUFFIX}.mp4"
-    args = ["ffmpeg", "-y", "-loglevel", "error", "-i", str(OUT / "autodoor-silent.mp4"),
-            "-i", str(OUT / "autodoor-score.wav"), "-i", str(narr_wav)]
+    out = OUT / f"{NAME}-promo{OUT_SUFFIX}.mp4"
+    bgm = SPEC.get("bgm")
+    music = ["-stream_loop", "-1", "-i", str(ROOT / "promo/bgm" / bgm)] if bgm else ["-i", str(OUT / f"{NAME}-score.wav")]
+    args = ["ffmpeg", "-y", "-loglevel", "error", "-i", str(SILENT), *music, "-i", str(narr_wav)]
     for p in subs:
         args += ["-loop", "1", "-t", str(DURATION), "-i", str(p)]
     v = f"[0:v]pad=1920:{1080 + BAND_H}:0:0:color={BG}[v0]"
@@ -134,7 +146,8 @@ def compose(narr_wav: Path, timed: list[dict], subs: list[Path], credit: Path | 
         args += ["-loop", "1", "-t", str(DURATION), "-i", str(credit)]
         v += f";[{last}][{3 + len(subs)}:v]overlay=0:1080[vc]"
         last = "vc"
-    a = ("[2:a]asplit=2[n1][n2];[1:a][n1]sidechaincompress=threshold=0.03:ratio=6:attack=20:release=400[duck];"
+    fade = f"volume={BGM_GAIN_DB}dB,afade=t=in:d=1,afade=t=out:st={DURATION - 2.5:.2f}:d=2.5," if bgm else ""
+    a = (f"[1:a]{fade}aresample=48000,atrim=0:{DURATION}[m];[2:a]asplit=2[n1][n2];[m][n1]sidechaincompress=threshold=0.03:ratio=6:attack=20:release=400[duck];"
          "[duck][n2]amix=inputs=2:weights='1 1.6':normalize=0,loudnorm=I=-14:TP=-1.5:LRA=11[a]")
     args += ["-filter_complex", v + ";" + a, "-map", f"[{last}]", "-map", "[a]",
              "-c:v", "libx264", "-crf", "18", "-preset", "slow", "-pix_fmt", "yuv420p", "-r", "60",
@@ -144,7 +157,7 @@ def compose(narr_wav: Path, timed: list[dict], subs: list[Path], credit: Path | 
 
 
 def main() -> int:
-    spec = json.loads(SCRIPT.read_text())
+    spec = SPEC
     script = spec["lines"]
     report = json.loads((NARR / "lines.json").read_text())
     narr = build_narration(report)
