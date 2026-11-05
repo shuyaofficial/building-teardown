@@ -1,0 +1,21 @@
+{"duration": 39.6,
+ "beats": {
+  "car_mid": 0.2,
+  "start_up": 0.6,
+  "view_hyd": 3,
+  "iso_hyd": 3.4,
+  "iso_chain": 8.4,
+  "iso_chain2": 12,
+  "view_safe": 12,
+  "land_up": 13.463,
+  "latch": 13.963,
+  "gate_open": 17.796,
+  "car_kei": 17.9,
+  "person_in": 18.1,
+  "refuse_person": 19.8,
+  "person_out": 20.3,
+  "start_down": 21.8,
+  "view_all": 25,
+  "gate_shut": 25.633,
+  "land_down": 38.996
+ }}

@@ -1,0 +1,17 @@
+{"duration": 36.4,
+ "beats": {
+  "press_close": 1.5,
+  "view_drum": 5.5,
+  "iso_coil": 6.5,
+  "iso_drive": 11.1,
+  "iso_drive2": 14.9,
+  "view_seat": 14.9,
+  "press_obsOn": 15.9,
+  "detect": 22.435,
+  "stopped": 22.635,
+  "climbed": 24.135,
+  "press_obsOff": 25.9,
+  "press_close2": 27.1,
+  "closed": 32.344,
+  "view_all": 32.7
+ }}

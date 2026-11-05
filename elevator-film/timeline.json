@@ -1,0 +1,8 @@
+{"duration": 51.2,
+ "beats": {
+  "call10": 0.35, "depart1F": 0.8, "follow": 4.2, "cwtView": 8.4, "isoCwt": 9.0, "passing": 11.92,
+  "machineView": 13.7, "isoMachine": 14.3, "allView": 18.9, "decel10F": 20.34, "doorView": 21.4, "isoDoor": 22.2,
+  "arrive10F": 23.04, "doorOpen": 23.3, "doorHold": 25.3, "doorClose": 27.3, "doorClosed": 30.3,
+  "call5": 30.6, "depart10F": 31.0, "machineView2": 34.0, "allView2": 37.6, "cutOff": 38.6, "cutOn": 40.4,
+  "follow2": 41.0, "regen": 41.86, "arrive5F": 44.55, "call6": 44.8, "depart5F": 45.1, "arrive6F": 50.03
+ }}
