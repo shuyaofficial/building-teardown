@@ -8,3 +8,4 @@ __pycache__/
 *.blend1
 # 投稿文の下書き（公開しない）
 promo/x-posts.md
+promo/autodoor-promo.mp4
