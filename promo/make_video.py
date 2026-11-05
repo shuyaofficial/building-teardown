@@ -1,6 +1,11 @@
 """Finish the promo video: narration (Chatterbox clips) + score + subtitles timed by faster-whisper.
 
-    ~/.venvs/chatterbox/bin/python promo/make_video.py
+    ~/.venvs/chatterbox/bin/python promo/make_video.py                                 # promo/narration.json
+    ~/.venvs/chatterbox/bin/python promo/make_video.py promo/narration-zundamon.json   # ずんだもん版
+
+For promo/narration-<name>.json the narration is read from teardown-out/narration-<name>/ and the outputs get a
+-<name> suffix. A script with a "credit" (VOICEVOX:ずんだもん) shows it in the corner of the subtitle band all the way
+through, as the voice's terms require.
 
 Inputs:  teardown-out/autodoor-silent.mp4, teardown-out/autodoor-score.wav,
          teardown-out/narration/lines.json (from promo/tts.py), promo/narration.json
@@ -26,7 +31,9 @@ from PIL import Image, ImageDraw, ImageFont
 
 ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / "teardown-out"
-NARR = OUT / "narration"
+SCRIPT = Path(sys.argv[1]).resolve() if len(sys.argv) > 1 else ROOT / "promo/narration.json"
+SUFFIX = SCRIPT.stem[len("narration"):] if SCRIPT.stem.startswith("narration") else "-" + SCRIPT.stem
+NARR = OUT / f"narration{SUFFIX}"
 SR = 48000
 DURATION = 54.4
 BAND_H = 180
@@ -74,7 +81,7 @@ def srt_time(t: float) -> str:
 
 
 def write_srt(timed: list[dict]) -> Path:
-    path = ROOT / "promo/autodoor.srt"
+    path = ROOT / f"promo/autodoor{SUFFIX}.srt"
     body = "\n".join(f"{i + 1}\n{srt_time(c['start'])} --> {srt_time(c['end'])}\n{c['text']}\n" for i, c in enumerate(timed))
     path.write_text(body)
     return path
@@ -87,13 +94,13 @@ def wrap(text: str, font: ImageFont.FreeTypeFont, width: int) -> list[str]:
     return [text[:cut], text[cut:]]
 
 
-def band_images(timed: list[dict]) -> list[Path]:
+def band_images(timed: list[dict], width: int) -> list[Path]:
     font = ImageFont.truetype(FONT, 46)
     paths = []
     for i, cue in enumerate(timed):
         img = Image.new("RGBA", (1920, BAND_H), (0, 0, 0, 0))
         d = ImageDraw.Draw(img)
-        rows = wrap(cue["text"], font, 1760)
+        rows = wrap(cue["text"], font, width)
         y = (BAND_H - 62 * len(rows)) // 2
         for row in rows:
             d.text(((1920 - font.getlength(row)) / 2, y), row, font=font, fill=INK)
@@ -104,8 +111,17 @@ def band_images(timed: list[dict]) -> list[Path]:
     return paths
 
 
-def compose(narr_wav: Path, timed: list[dict], subs: list[Path]) -> Path:
-    out = OUT / "autodoor-promo.mp4"
+def credit_image(text: str) -> Path:
+    font = ImageFont.truetype(FONT, 24)
+    img = Image.new("RGBA", (1920, BAND_H), (0, 0, 0, 0))
+    ImageDraw.Draw(img).text((1920 - 36 - font.getlength(text), BAND_H - 44), text, font=font, fill=(95, 88, 78, 255))
+    p = NARR / "credit.png"
+    img.save(p)
+    return p
+
+
+def compose(narr_wav: Path, timed: list[dict], subs: list[Path], credit: Path | None) -> Path:
+    out = OUT / f"autodoor-promo{SUFFIX}.mp4"
     args = ["ffmpeg", "-y", "-loglevel", "error", "-i", str(OUT / "autodoor-silent.mp4"),
             "-i", str(OUT / "autodoor-score.wav"), "-i", str(narr_wav)]
     for p in subs:
@@ -113,9 +129,14 @@ def compose(narr_wav: Path, timed: list[dict], subs: list[Path]) -> Path:
     v = f"[0:v]pad=1920:{1080 + BAND_H}:0:0:color={BG}[v0]"
     for i, cue in enumerate(timed):
         v += f";[v{i}][{3 + i}:v]overlay=0:1080:enable='between(t,{cue['start']},{cue['end']})'[v{i + 1}]"
+    last = f"v{len(timed)}"
+    if credit is not None:
+        args += ["-loop", "1", "-t", str(DURATION), "-i", str(credit)]
+        v += f";[{last}][{3 + len(subs)}:v]overlay=0:1080[vc]"
+        last = "vc"
     a = ("[2:a]asplit=2[n1][n2];[1:a][n1]sidechaincompress=threshold=0.03:ratio=6:attack=20:release=400[duck];"
          "[duck][n2]amix=inputs=2:weights='1 1.6':normalize=0,loudnorm=I=-14:TP=-1.5:LRA=11[a]")
-    args += ["-filter_complex", v + ";" + a, "-map", f"[v{len(timed)}]", "-map", "[a]",
+    args += ["-filter_complex", v + ";" + a, "-map", f"[{last}]", "-map", "[a]",
              "-c:v", "libx264", "-crf", "18", "-preset", "slow", "-pix_fmt", "yuv420p", "-r", "60",
              "-c:a", "aac", "-b:a", "256k", "-ar", "48000", "-movflags", "+faststart", "-t", str(DURATION), str(out)]
     subprocess.run(args, check=True)
@@ -123,7 +144,8 @@ def compose(narr_wav: Path, timed: list[dict], subs: list[Path]) -> Path:
 
 
 def main() -> int:
-    script = json.loads((ROOT / "promo/narration.json").read_text())["lines"]
+    spec = json.loads(SCRIPT.read_text())
+    script = spec["lines"]
     report = json.loads((NARR / "lines.json").read_text())
     narr = build_narration(report)
     timed = time_lines(script, report)
@@ -132,7 +154,9 @@ def main() -> int:
         flag = "" if c["match"] >= MATCH_MIN else "  ** whisper heard something else"
         print(f"{c['start']:5.2f}-{c['end']:5.2f} match {c['match']:.2f} | {c['heard']}{flag}", flush=True)
     srt = write_srt(timed)
-    out = compose(narr, timed, band_images(timed))
+    credit = spec.get("credit")
+    subs = band_images(timed, 1500 if credit else 1760)
+    out = compose(narr, timed, subs, credit_image(credit) if credit else None)
     print(f"→ {out}\n→ {srt}")
     return 0 if all(c["match"] >= MATCH_MIN for c in timed) else 2
 

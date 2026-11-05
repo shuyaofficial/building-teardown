@@ -42,7 +42,7 @@ tools/publish-pages.sh                   # 全ページをビルドして docs/ 
 | `<設備>/` | 仕様と出典（`refs.md`）と検算テスト |
 | `building-kit/` | 全設備で使う配色・日本語の計器盤・カーソル |
 | `tools/` | ビルドと検査のスクリプト、実装の依頼文のひな形 |
-| `promo/` | 紹介動画のナレーション原稿と、合成のスクリプト |
+| `promo/` | 紹介動画のナレーション原稿と、合成のスクリプト（音声は VOICEVOX:ずんだもん、または Chatterbox） |
 
 実装は Claude Code（Anthropic）に依頼文を渡して作りました。共通の契約は `tools/BRIEF-TEMPLATE.md`、軽量版の追加ルールは `tools/BRIEF-LIGHT.md`、自動ドアの依頼文は `autodoor/brief.md` です。
 
